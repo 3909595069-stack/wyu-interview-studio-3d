@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>武夷学院毕业生网络视频面试间 · 3D 漫游</title>
+<style>
+  :root{
+    --ink:#e8ecef;
+    --dim:#8b949c;
+    --line:rgba(255,255,255,.14);
+    --glass:rgba(14,17,21,.62);
+    --accent:#5ec8b0;
+    --warm:#d9a15a;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%;overflow:hidden;background:#07090b;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    color:var(--ink);user-select:none;-webkit-user-select:none;touch-action:none}
+  #app{position:fixed;inset:0}
+  canvas{display:block;width:100%;height:100%}
+
+  /* ---------- top bar ---------- */
+  #top{position:fixed;top:0;left:0;right:0;padding:14px 16px;display:flex;
+    align-items:flex-start;justify-content:space-between;gap:12px;pointer-events:none;z-index:20}
+  .brand{pointer-events:auto;background:var(--glass);backdrop-filter:blur(14px);
+    -webkit-backdrop-filter:blur(14px);border:1px solid var(--line);border-radius:14px;
+    padding:10px 14px;max-width:min(58vw,420px)}
+  .brand h1{margin:0;font-size:14px;font-weight:600;letter-spacing:.02em;line-height:1.35}
+  .brand p{margin:4px 0 0;font-size:11px;color:var(--dim);line-height:1.5}
+
+  #compass{pointer-events:auto;background:var(--glass);backdrop-filter:blur(14px);
+    -webkit-backdrop-filter:blur(14px);border:1px solid var(--line);border-radius:14px;
+    padding:10px 12px 9px;display:flex;flex-direction:column;align-items:center;gap:6px;min-width:96px}
+  #dial{position:relative;width:56px;height:56px;border-radius:50%;
+    border:1px solid rgba(255,255,255,.18);
+    background:radial-gradient(circle at 50% 42%,rgba(255,255,255,.09),rgba(255,255,255,.015) 70%)}
+  #dial:before{content:"";position:absolute;left:50%;top:-4px;width:0;height:0;
+    transform:translateX(-50%);border-left:4px solid transparent;border-right:4px solid transparent;
+    border-top:6px solid var(--accent)}
+  #needle{position:absolute;left:50%;top:50%;width:2px;height:20px;border-radius:2px;
+    background:linear-gradient(to bottom,var(--accent),rgba(94,200,176,.15));
+    transform-origin:50% 100%;transform:translate(-50%,-100%)}
+  #dial .dot{position:absolute;left:50%;top:50%;width:5px;height:5px;border-radius:50%;
+    background:#fff;transform:translate(-50%,-50%);opacity:.85}
+  #faceName{font-size:11px;color:var(--dim);white-space:nowrap}
+  #faceName b{color:var(--accent);font-weight:600}
+
+  /* ---------- crosshair ---------- */
+  #cross{position:fixed;left:50%;top:50%;width:16px;height:16px;margin:-8px 0 0 -8px;
+    z-index:15;pointer-events:none;opacity:.5}
+  #cross:before,#cross:after{content:"";position:absolute;background:#fff}
+  #cross:before{left:7px;top:0;width:2px;height:16px}
+  #cross:after{top:7px;left:0;height:2px;width:16px}
+
+  /* ---------- joysticks ---------- */
+  .stick{position:fixed;bottom:22px;width:118px;height:118px;border-radius:50%;
+    border:1px solid var(--line);background:var(--glass);backdrop-filter:blur(12px);
+    -webkit-backdrop-filter:blur(12px);z-index:30;touch-action:none}
+  #stickMove{left:20px}
+  #stickLook{right:20px}
+  .stick .ring{position:absolute;inset:14px;border-radius:50%;border:1px dashed rgba(255,255,255,.12)}
+  .stick .knob{position:absolute;left:50%;top:50%;width:46px;height:46px;margin:-23px 0 0 -23px;
+    border-radius:50%;background:radial-gradient(circle at 40% 35%,#f2f6f8,#b9c4cc 65%,#8d979f);
+    box-shadow:0 6px 16px rgba(0,0,0,.45);transition:transform .06s linear}
+  .stick .cap{position:absolute;left:0;right:0;bottom:-20px;text-align:center;font-size:10px;
+    color:var(--dim);letter-spacing:.14em}
+  .stick.active{border-color:rgba(94,200,176,.5)}
+  .stick.active .knob{background:radial-gradient(circle at 40% 35%,#d9fff6,#5ec8b0 70%,#379b85)}
+
+  /* ---------- bottom actions ---------- */
+  #actions{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);
+    display:flex;gap:8px;z-index:25;flex-wrap:wrap;justify-content:center;max-width:calc(100vw - 300px)}
+  .btn{pointer-events:auto;border:1px solid var(--line);background:var(--glass);
+    backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);color:var(--ink);
+    font:inherit;font-size:12px;padding:9px 13px;border-radius:11px;cursor:pointer;
+    display:inline-flex;align-items:center;gap:6px;transition:background .15s,border-color .15s,transform .1s}
+  .btn:hover{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.26)}
+  .btn:active{transform:scale(.97)}
+  .btn.on{background:rgba(94,200,176,.18);border-color:rgba(94,200,176,.55);color:#c9f5ea}
+  .btn.primary{background:rgba(217,161,90,.18);border-color:rgba(217,161,90,.5);color:#f3d6ae}
+
+  /* ---------- sit sheet ---------- */
+  #sheet{position:fixed;left:50%;bottom:86px;transform:translate(-50%,14px);
+    background:var(--glass);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+    border:1px solid var(--line);border-radius:16px;padding:12px;z-index:40;
+    display:flex;flex-direction:column;gap:6px;min-width:230px;
+    opacity:0;pointer-events:none;transition:opacity .18s,transform .18s}
+  #sheet.open{opacity:1;pointer-events:auto;transform:translate(-50%,0)}
+  #sheet h4{margin:2px 4px 6px;font-size:11px;color:var(--dim);font-weight:500;letter-spacing:.08em}
+  #sheet .row{display:flex;align-items:center;gap:8px;padding:9px 10px;border-radius:10px;
+    cursor:pointer;font-size:12.5px;border:1px solid transparent}
+  #sheet .row:hover{background:rgba(255,255,255,.08);border-color:var(--line)}
+  #sheet .row i{width:7px;height:7px;border-radius:2px;background:var(--warm);flex:none}
+  #sheet .row i.k{background:#2f3439}
+
+  /* ---------- help ---------- */
+  #help{position:fixed;inset:0;z-index:60;background:rgba(5,7,9,.82);
+    backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+    display:flex;align-items:center;justify-content:center;padding:24px;
+    transition:opacity .22s}
+  #help.hide{opacity:0;pointer-events:none}
+  #help .card{max-width:520px;width:100%;background:rgba(16,20,25,.96);
+    border:1px solid var(--line);border-radius:20px;padding:24px 26px}
+  #help h2{margin:0 0 4px;font-size:17px;font-weight:600}
+  #help .sub{margin:0 0 18px;font-size:12px;color:var(--dim)}
+  #help dl{display:grid;grid-template-columns:auto 1fr;gap:9px 14px;margin:0 0 20px;
+    font-size:12.5px;line-height:1.55}
+  #help dt{color:var(--accent);white-space:nowrap}
+  #help dd{margin:0;color:#c2cad1}
+  #help .go{width:100%;padding:12px;border-radius:12px;border:1px solid rgba(94,200,176,.5);
+    background:rgba(94,200,176,.16);color:#d6fbf1;font:inherit;font-size:13.5px;
+    font-weight:600;cursor:pointer;letter-spacing:.04em}
+  #help .go:hover{background:rgba(94,200,176,.26)}
+
+  #loading{position:fixed;inset:0;z-index:70;display:flex;align-items:center;justify-content:center;
+    background:#07090b;color:var(--dim);font-size:12.5px;letter-spacing:.16em;transition:opacity .4s}
+  #loading.hide{opacity:0;pointer-events:none}
+
+  #toast{position:fixed;left:50%;top:74px;transform:translate(-50%,-8px);z-index:50;
+    background:rgba(14,17,21,.9);border:1px solid var(--line);border-radius:10px;
+    padding:8px 14px;font-size:12px;color:#cfd6db;opacity:0;transition:opacity .2s,transform .2s;
+    pointer-events:none}
+  #toast.on{opacity:1;transform:translate(-50%,0)}
+
+  @media (max-width:720px){
+    .brand{max-width:52vw;padding:8px 11px}
+    .brand h1{font-size:12px}
+    .brand p{font-size:10px}
+    #compass{padding:8px 10px;min-width:80px}
+    #dial{width:46px;height:46px}
+    .stick{width:104px;height:104px;bottom:16px}
+    #stickMove{left:14px}#stickLook{right:14px}
+    .stick .knob{width:40px;height:40px;margin:-20px 0 0 -20px}
+    #actions{bottom:132px;max-width:calc(100vw - 24px)}
+    .btn{font-size:11px;padding:8px 11px}
+  }
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<div id="top">
+  <div class="brand">
+    <h1>武夷学院 · 毕业生网络视频面试间</h1>
+    <p>约 17 m²｜直角梯形｜书法墙 6.6 m｜素墙 3.2 m｜45° 斜墙</p>
+  </div>
+  <div id="compass">
+    <div id="dial"><div id="needle"></div><div class="dot"></div></div>
+    <div id="faceName">正对 <b>—</b></div>
+  </div>
+</div>
+
+<div id="cross"></div>
+
+<div class="stick" id="stickMove">
+  <div class="ring"></div><div class="knob"></div><div class="cap">移动</div>
+</div>
+<div class="stick" id="stickLook">
+  <div class="ring"></div><div class="knob"></div><div class="cap">视角</div>
+</div>
+
+<div id="actions">
+  <button class="btn" id="btnSit">🪑 坐下</button>
+  <button class="btn" id="btnStand" style="display:none">↩ 站起</button>
+  <button class="btn" id="btnHead">🧭 头部追踪</button>
+  <button class="btn" id="btnReset">⟲ 回到门口</button>
+  <button class="btn" id="btnHelp">？ 操作说明</button>
+</div>
+
+<div id="sheet">
+  <h4>选择座位</h4>
+</div>
+
+<div id="toast"></div>
+
+<div id="loading">正在构建空间 …</div>
+
+<div id="help">
+  <div class="card">
+    <h2>360° 自由观察</h2>
+    <p class="sub">房间按实测尺寸 1:1 还原，任何角度都不会穿帮。</p>
+    <dl>
+      <dt>视角</dt><dd>右下方向盘 / 鼠标拖动 / 方向键 ← → ↑ ↓，可抬头低头、原地回头</dd>
+      <dt>移动</dt><dd>左下方向盘 / W A S D / 触屏拖动左侧，走到任意位置</dd>
+      <dt>坐下</dt><dd>点「坐下」选一把椅子，视线自动落到坐姿高度并朝向该椅正对方向</dd>
+      <dt>头部追踪</dt><dd>手机端开启后，转动手机即视角跟随（iOS 需允许运动权限）</dd>
+      <dt>桌面</dt><dd>点击画面锁定鼠标，移动鼠标转头，Esc 解锁</dd>
+    </dl>
+    <button class="go" id="btnGo">进入工作室</button>
+  </div>
+</div>
+
+<script src="lib/three.min.js"></script>
+<script src="lib/GLTFLoader.js"></script>
+<script src="model.b64.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
